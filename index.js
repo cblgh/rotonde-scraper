@@ -10,7 +10,7 @@ const start = new Date()
 const scrapedDataPath = './scraped.txt'
 const seenPortalFile = './portals.json'
 
-const maxConcurrent = 10
+const maxConcurrent = 1
 var numProcessing = 0
 
 var userCount = 0
@@ -104,7 +104,7 @@ async function loadSite(url) {
 // save scraped portals to mitigate intermittent crash with dat-node
 // when closing utp connections (i.e. we can pickup where we left off)
 function saveScrapedPortals() {
-  var data = JSON.stringify(loadedUsers.entries())
+  var data = JSON.stringify(Array.from(loadedUsers.entries()))
   fs.writeFile(seenPortalFile, data, function(err) {
     if (err) { throw err }
     setTimeout(saveScrapedPortals, 1000)
