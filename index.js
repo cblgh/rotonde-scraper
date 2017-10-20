@@ -91,7 +91,7 @@ async function loadSite(url) {
 
 function tick() {
     var timeElapsed = parseInt((new Date() - start) / 1000)
-    console.log(process.memoryUsage())
+    // console.log(process.memoryUsage())
     if(timeElapsed < DEADLINE) {
         if (queue.length) {
           let url = queue.shift()
