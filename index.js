@@ -2,14 +2,17 @@ const Dat = require("dat-node")
 const fs = require("fs")
 const datUrl = "dat://7f2ef715c36b6cd226102192ba220c73384c32e4beb49601fb3f5bba4719e0c5/"
 const queue = [cleanURL(datUrl)]
-const knownUsers = {}
-const loadedUsers = {}
+const knownUsers = new Set()
+const loadedUsers = new Set()
 const scrapedUsers = [] // mirrors loadedUsers, but used for saving to file (attempted hack for fixing segfaults)
 const DEADLINE = 10 * 60
 const start = new Date()
 
 const scrapedDataPath = './scraped.txt'
 const seenPortalFile = './portals.json'
+
+const maxConcurrent = 10
+var numProcessing = 0
 
 var userCount = 0
 var writer
@@ -22,64 +25,66 @@ var writer
  *
  * random ass segfaults
  * CAUSE: cblgh?
-*/
+ */
 
 function readFile(path, url) {
-    return new Promise((resolve, reject) => {
-        Dat("./files", {key: url, temp: true, sparse: true}, (err, dat) => {
-            if (err) {
-                return reject(err)
-            }
-            var network = dat.joinNetwork()
-            dat.archive.readFile(path, function(err, data) {
-                if (err) {
-                    return reject(err)
-                }
+  return new Promise((resolve, reject) => {
+    Dat("./files", {key: url, temp: true, sparse: true}, (err, dat) => {
+      if (err) {
+        return reject(err)
+      }
+      var network = dat.joinNetwork()
+      dat.archive.readFile(path, function(err, data) {
+        if (err) {
+          return reject(err)
+        }
 
-                dat.leave()
-                dat.close()
+        dat.leave()
+        dat.close()
 
-                resolve(data && data.toString())
-            })
-        })
+        resolve(data && data.toString())
+      })
     })
+  })
 }
 
 function processUser(portal) {
-	if(loadedUsers[portal.dat]) return
-	loadedUsers[portal.dat] = true
-	
+  if(loadedUsers[portal.dat]) return
+  loadedUsers[portal.dat] = true
+
   if (portal.feed) {
-      writer.write(portal.feed.map(JSON.stringify).join('\n'))
+    writer.write(portal.feed.map(JSON.stringify).join('\n'))
   }
 
   if (portal.dat) {
-      scrapedUsers.push(portal.dat)
+    scrapedUsers.push(portal.dat)
   }
 
   // crawl the list of portals
   for(let i=0; i<portal.port.length; ++i) {
     let p = cleanURL(portal.port[i])
-    if(!knownUsers[p]) {
-      knownUsers[p] = true
+    if(!knownUsers.has(p)) {
+      knownUsers.add(p)
       queue.push(p)
     }
   }
 
-	++userCount
+  console.log(`finishing ${portal.dat}`)
+  --numProcessing
+  ++userCount
 }
 
 function cleanURL(url) {
-	url = url.trim()
-	while(url[url.length-1] == "/") {
-		url = url.slice(0, -1)
-	}
-	return url + "/"
+  url = url.trim()
+  while(url[url.length-1] == "/") {
+    url = url.slice(0, -1)
+  }
+  return url + "/"
 }
 
 var writeQueue = []
 async function loadSite(url) {
-	if(loadedUsers[url]) return
+  if(loadedUsers.has(url)) return
   var data
   try {
     data = await readFile("/portal.json", url)
@@ -91,63 +96,54 @@ async function loadSite(url) {
   if (data) {
     processUser(JSON.parse(data))
   }
-}
 
-function tick() {
-    var timeElapsed = parseInt((new Date() - start) / 1000)
-    // console.log(process.memoryUsage())
-    if(timeElapsed < DEADLINE) {
-        if (queue.length) {
-          let url = queue.shift()
-          console.log('loading', url)
-          loadSite(url)
-        }
-        setTimeout(tick, 250)
-    } else {
-        console.log("finished!")
-        process.exit()
-    }
+  while (queue.length && (numProcessing < maxConcurrent)) {
+    ++numProcessing
+    var url = queue.shift()
+    console.log(`processing ${url}`)
+    loadSite(url)
+  }
 }
 
 // save scraped portals to mitigate intermittent crash with dat-node
 // when closing utp connections (i.e. we can pickup where we left off)
 function saveScrapedPortals() {
-    var data = JSON.stringify(scrapedUsers)
-    fs.writeFile(seenPortalFile, data, function(err) {
-        if (err) { throw err }
-        setTimeout(saveScrapedPortals, 1000)
-    })
+  var data = JSON.stringify(scrapedUsers)
+  fs.writeFile(seenPortalFile, data, function(err) {
+    if (err) { throw err }
+    setTimeout(saveScrapedPortals, 1000)
+  })
 }
 
 async function main() {
-    try { 
-        var scrapedUsers = require(seenPortalFile)
-        scrapedUsers.forEach((portal) => {
-          loadedUsers[portal] = true
-        })
-    } catch (e) {
-      console.log(e)
+  try { 
+    var scrapedUsers = require(seenPortalFile)
+    scrapedUsers.forEach((portal) => {
+      loadedUsers.add(portal)
+    })
+  } catch (e) {
+    console.log(e)
+  }
+
+  fs.stat(scrapedDataPath, function(err, stats) {
+    // create the file if it doesn't exist
+    var size
+    if (err && err.code === 'ENOENT') {
+      fs.closeSync(fs.openSync(scrapedDataPath, 'w'))
+      size = 0
+    } else {
+      size = stats.size
     }
 
-    fs.stat(scrapedDataPath, function(err, stats) {
-      // create the file if it doesn't exist
-      var size
-      if (err && err.code === 'ENOENT') {
-        fs.closeSync(fs.openSync(scrapedDataPath, 'w'))
-        size = 0
-      } else {
-        size = stats.size
-      }
-
-      writer = fs.createWriteStream(scrapedDataPath, {
-        autoClose: true,
-        start: size
-      })
-      tick()
-      saveScrapedPortals()
+    writer = fs.createWriteStream(scrapedDataPath, {
+      autoClose: true,
+      start: size
     })
+    loadSite(queue.pop())
+    saveScrapedPortals()
+  })
 }
 
 main().then(function() {
-    console.log(loadedUsers)
+  console.log(loadedUsers)
 })
