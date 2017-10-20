@@ -120,7 +120,7 @@ function writer() {
 // when closing utp connections (i.e. we can pickup where we left off)
 function saveScrapedPortals() {
     var data = JSON.stringify(scrapedUsers)
-    fs.writeFile("./scrapedPortals.json", data, function(err) {
+    fs.writeFile("./portals.json", data, function(err) {
         if (err) { throw err }
         setTimeout(saveScrapedPortals, 1000)
     })
@@ -128,7 +128,7 @@ function saveScrapedPortals() {
 
 async function main() {
     try { 
-        var scrapedUsers = require('./scrapedPortals.json')
+        var scrapedUsers = require('./portals.json')
         scrapedUsers.forEach((portal) => {
           loadedUsers[portal] = true
         })
