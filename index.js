@@ -1,7 +1,6 @@
 var Dat = require("dat-node")
 var fs = require("fs")
 
-var queue = []
 var knownUsers = {}
 var loadedUsers = {}
 var userCount = 0
@@ -9,6 +8,7 @@ var userCount = 0
 var scrapedUsers = [] // mirrors loadedUsers, but used for saving to file (attempted hack for fixing segfaults)
 
 var datUrl = "dat://7f2ef715c36b6cd226102192ba220c73384c32e4beb49601fb3f5bba4719e0c5/"
+var queue = [cleanURL(datUrl)]
 var DEADLINE = 10 * 60
 var start = new Date()
 
@@ -75,6 +75,7 @@ async function loadSite(url) {
       writeQueue.push(portal.feed)
   }
   if (portal.dat) {
+      console.log(portal.dat)
       scrapedUsers.push(portal.dat)
   }
 
@@ -126,12 +127,9 @@ function saveScrapedPortals() {
 }
 
 async function main() {
-    queue = [cleanURL(datUrl)]
-    knownUsers = {}
-    loadedUsers = {}
-    userCount = 0
     try { 
-        require('./scrapedPortals.json').forEach((portal) => {
+        var scrapedUsers = require('./scrapedPortals.json')
+        scrapedUsers.forEach((portal) => {
           loadedUsers[portal] = true
         })
     } catch (e) {
