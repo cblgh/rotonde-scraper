@@ -4,7 +4,6 @@ const datUrl = "dat://7f2ef715c36b6cd226102192ba220c73384c32e4beb49601fb3f5bba47
 const queue = [cleanURL(datUrl)]
 const knownUsers = new Set()
 const loadedUsers = new Set()
-const scrapedUsers = [] // mirrors loadedUsers, but used for saving to file (attempted hack for fixing segfaults)
 const DEADLINE = 10 * 60
 const start = new Date()
 
@@ -49,16 +48,13 @@ function readFile(path, url) {
 }
 
 function processUser(portal) {
-  if(loadedUsers[portal.dat]) return
-  loadedUsers[portal.dat] = true
+  if(loadedUsers.has(portal.dat)) return
 
   if (portal.feed) {
     writer.write(portal.feed.map(JSON.stringify).join('\n'))
   }
 
-  if (portal.dat) {
-    scrapedUsers.push(portal.dat)
-  }
+  loadedUsers.add(portal.dat)
 
   // crawl the list of portals
   for(let i=0; i<portal.port.length; ++i) {
@@ -108,7 +104,7 @@ async function loadSite(url) {
 // save scraped portals to mitigate intermittent crash with dat-node
 // when closing utp connections (i.e. we can pickup where we left off)
 function saveScrapedPortals() {
-  var data = JSON.stringify(scrapedUsers)
+  var data = JSON.stringify(loadedUsers.entries())
   fs.writeFile(seenPortalFile, data, function(err) {
     if (err) { throw err }
     setTimeout(saveScrapedPortals, 1000)
@@ -117,8 +113,7 @@ function saveScrapedPortals() {
 
 async function main() {
   try { 
-    var scrapedUsers = require(seenPortalFile)
-    scrapedUsers.forEach((portal) => {
+    require(seenPortalFile).forEach((portal) => {
       loadedUsers.add(portal)
     })
   } catch (e) {
