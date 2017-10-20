@@ -10,7 +10,7 @@ const start = new Date()
 const scrapedDataPath = './scraped.txt'
 const seenPortalFile = './portals.json'
 
-const maxConcurrent = 10
+const maxConcurrent = 1
 var numProcessing = 0
 
 var userCount = 0
