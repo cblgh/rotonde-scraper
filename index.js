@@ -1,16 +1,18 @@
-var Dat = require("dat-node")
-var fs = require("fs")
+const Dat = require("dat-node")
+const fs = require("fs")
+const datUrl = "dat://7f2ef715c36b6cd226102192ba220c73384c32e4beb49601fb3f5bba4719e0c5/"
+const queue = [cleanURL(datUrl)]
+const knownUsers = {}
+const loadedUsers = {}
+const scrapedUsers = [] // mirrors loadedUsers, but used for saving to file (attempted hack for fixing segfaults)
+const DEADLINE = 10 * 60
+const start = new Date()
 
-var knownUsers = {}
-var loadedUsers = {}
+const scrapedDataPath = './scraped.txt'
+const seenPortalFile = './portals.json'
+
 var userCount = 0
-
-var scrapedUsers = [] // mirrors loadedUsers, but used for saving to file (attempted hack for fixing segfaults)
-
-var datUrl = "dat://7f2ef715c36b6cd226102192ba220c73384c32e4beb49601fb3f5bba4719e0c5/"
-var queue = [cleanURL(datUrl)]
-var DEADLINE = 10 * 60
-var start = new Date()
+var writer
 
 /* KNOWN ERRORS:
  * node: src/unix/udp.c:67: uv__udp_finish_close: Assertion
@@ -43,10 +45,27 @@ function readFile(path, url) {
     })
 }
 
-function addUser(portal) {
+function processUser(portal) {
 	if(loadedUsers[portal.dat]) return
 	loadedUsers[portal.dat] = true
 	
+  if (portal.feed) {
+      writer.write(portal.feed.map(JSON.stringify).join('\n'))
+  }
+
+  if (portal.dat) {
+      scrapedUsers.push(portal.dat)
+  }
+
+  // crawl the list of portals
+  for(let i=0; i<portal.port.length; ++i) {
+    let p = cleanURL(portal.port[i])
+    if(!knownUsers[p]) {
+      knownUsers[p] = true
+      queue.push(p)
+    }
+  }
+
 	++userCount
 }
 
@@ -69,23 +88,8 @@ async function loadSite(url) {
     return
   }
 
-  let portal = JSON.parse(data)
-  addUser(portal)
-  if (portal.feed) {
-      writeQueue.push(portal.feed)
-  }
-  if (portal.dat) {
-      console.log(portal.dat)
-      scrapedUsers.push(portal.dat)
-  }
-
-  // crawl the list of portals
-  for(let i=0; i<portal.port.length; ++i) {
-    let p = cleanURL(portal.port[i])
-    if(!knownUsers[p]) {
-      knownUsers[p] = true
-      queue.push(p)
-    }
+  if (data) {
+    processUser(JSON.parse(data))
   }
 }
 
@@ -105,22 +109,11 @@ function tick() {
     }
 }
 
-function writer() {
-    if (writeQueue.length > 0) {
-        console.log("writequeue length", writeQueue.length)
-        var arr = writeQueue.shift()
-        var data = arr.map(JSON.stringify).join("\n")
-        fs.appendFile("./scraped.txt", data, writer)
-    } else {
-        setTimeout(writer, 1500)
-    }
-}
-
 // save scraped portals to mitigate intermittent crash with dat-node
 // when closing utp connections (i.e. we can pickup where we left off)
 function saveScrapedPortals() {
     var data = JSON.stringify(scrapedUsers)
-    fs.writeFile("./portals.json", data, function(err) {
+    fs.writeFile(seenPortalFile, data, function(err) {
         if (err) { throw err }
         setTimeout(saveScrapedPortals, 1000)
     })
@@ -128,7 +121,7 @@ function saveScrapedPortals() {
 
 async function main() {
     try { 
-        var scrapedUsers = require('./portals.json')
+        var scrapedUsers = require(seenPortalFile)
         scrapedUsers.forEach((portal) => {
           loadedUsers[portal] = true
         })
@@ -136,9 +129,23 @@ async function main() {
       console.log(e)
     }
 
-    tick()
-    saveScrapedPortals()
-    writer()
+    fs.stat(scrapedDataPath, function(err, stats) {
+      // create the file if it doesn't exist
+      var size
+      if (err && err.code === 'ENOENT') {
+        fs.closeSync(fs.openSync(scrapedDataPath, 'w'))
+        size = 0
+      } else {
+        size = stats.size
+      }
+
+      writer = fs.createWriteStream(scrapedDataPath, {
+        autoClose: true,
+        start: size
+      })
+      tick()
+      saveScrapedPortals()
+    })
 }
 
 main().then(function() {
