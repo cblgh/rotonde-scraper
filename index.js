@@ -143,6 +143,7 @@ function createWriteStream(path) {
             }
 
             stream = fs.createWriteStream(path, {
+                flags: 'r+',
                 autoClose: true,
                 start: size
             })
