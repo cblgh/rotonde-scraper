@@ -26,22 +26,18 @@ function readFile(path, url) {
     return new Promise((resolve, reject) => {
         Dat("./files", {key: url, temp: true, sparse: true}, (err, dat) => {
             if (err) {
-              console.log(err)
-              reject(err)
+                return reject(err)
             }
             var network = dat.joinNetwork()
             dat.archive.readFile(path, function(err, data) {
                 if (err) {
-                  reject(err)
+                    return reject(err)
                 }
-                if (data) {
-                  resolve(data.toString())
-                } else {
-                  resolve()
-                }
+
+                dat.leave()
                 dat.close()
-                network.close()
-                dat.archive.close()
+
+                resolve(data && data.toString())
             })
         })
     })
@@ -65,7 +61,14 @@ function cleanURL(url) {
 var writeQueue = []
 async function loadSite(url) {
 	if(loadedUsers[url]) return
-  let data = await readFile("/portal.json", url)
+  var data
+  try {
+    data = await readFile("/portal.json", url)
+  } catch (e) {
+    console.log(e)
+    return
+  }
+
   let portal = JSON.parse(data)
   addUser(portal)
   if (portal.feed) {
