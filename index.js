@@ -15,6 +15,7 @@ var numProcessing = 0
 
 var userCount = 0
 var writer
+var portalWriter
 
 /* KNOWN ERRORS:
  * node: src/unix/udp.c:67: uv__udp_finish_close: Assertion
@@ -54,7 +55,7 @@ function processUser(portal) {
     writer.write(portal.feed.map(JSON.stringify).join('\n'))
   }
 
-  loadedUsers.add(portal.dat)
+  portalWriter.write(portal.dat)
 
   // crawl the list of portals
   for(let i=0; i<portal.port.length; ++i) {
@@ -101,16 +102,6 @@ async function loadSite(url) {
   }
 }
 
-// save scraped portals to mitigate intermittent crash with dat-node
-// when closing utp connections (i.e. we can pickup where we left off)
-function saveScrapedPortals() {
-  var data = JSON.stringify(loadedUsers.entries())
-  fs.writeFile(seenPortalFile, data, function(err) {
-    if (err) { throw err }
-    setTimeout(saveScrapedPortals, 1000)
-  })
-}
-
 async function main() {
   try { 
     require(seenPortalFile).forEach((portal) => {
@@ -120,23 +111,35 @@ async function main() {
     console.log(e)
   }
 
-  fs.stat(scrapedDataPath, function(err, stats) {
-    // create the file if it doesn't exist
-    var size
-    if (err && err.code === 'ENOENT') {
-      fs.closeSync(fs.openSync(scrapedDataPath, 'w'))
-      size = 0
-    } else {
-      size = stats.size
-    }
-
-    writer = fs.createWriteStream(scrapedDataPath, {
-      autoClose: true,
-      start: size
-    })
-    loadSite(queue.pop())
-    saveScrapedPortals()
+    createWriteStream(scrapedDataPath).then((stream) => {
+        writer = stream
+        return createWriteStream(seenPortalFile)
+    }).then((stream) => {
+        portalWriter = stream
+        loadSite(queue.pop())
   })
+}
+
+function createWriteStream(path) {
+    var stream
+    return new Promise((resolve, reject) => {
+        fs.stat(path, function(err, stats) {
+            // create the file if it doesn't exist
+            var size
+            if (err && err.code === 'ENOENT') {
+                fs.closeSync(fs.openSync(path, 'w'))
+                size = 0
+            } else {
+                size = stats.size
+            }
+
+            stream = fs.createWriteStream(path, {
+                autoClose: true,
+                start: size
+            })
+            resolve(stream)
+        })
+    })
 }
 
 main().then(function() {
