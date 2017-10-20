@@ -3,7 +3,6 @@ const fs = require("fs")
 const datUrl = "dat://7f2ef715c36b6cd226102192ba220c73384c32e4beb49601fb3f5bba4719e0c5/"
 const queue = [cleanURL(datUrl)]
 const knownUsers = new Set()
-const loadedUsers = new Set()
 const DEADLINE = 10 * 60
 const start = new Date()
 
@@ -14,6 +13,7 @@ const seenPortalDelimiter = '\n'
 const maxConcurrent = 1
 var numProcessing = 0
 
+var loadedUsers = new Set()
 var userCount = 0
 var writer
 var portalWriter
@@ -105,20 +105,20 @@ async function loadSite(url) {
 }
 
 async function main() {
-  try { 
-    fs
-      .readFileSync(seenPortalFile)
-      .toString()
-      .split(seenPortalDelimiter)
-      .forEach((portal) => {
-        if (portal) {
-          loadedUsers.add(portal)
+    try { 
+      fs
+        .readFileSync(seenPortalFile)
+        .toString()
+        .split(seenPortalDelimiter)
+        .forEach((portal) => {
+          if (portal) {
+            loadedUsers.add(portal)
+          }
         }
-      }
-    )
-  } catch (e) {
-    console.log(e)
-  }
+      )
+    } catch (e) {
+      console.log(e)
+    }
 
     createWriteStream(scrapedDataPath).then((stream) => {
         writer = stream
