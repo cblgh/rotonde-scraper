@@ -8,6 +8,9 @@ const scrapedUsers = [] // mirrors loadedUsers, but used for saving to file (att
 const DEADLINE = 10 * 60
 const start = new Date()
 
+const scrapedDataPath = './scraped.txt'
+const seenPortalFile = './portals.json'
+
 var userCount = 0
 var writer
 
@@ -47,7 +50,7 @@ function processUser(portal) {
 	loadedUsers[portal.dat] = true
 	
   if (portal.feed) {
-      writer.write(JSON.stringify(portal.feed))
+      writer.write(portal.feed.map(JSON.stringify).join('\n'))
   }
 
   if (portal.dat) {
@@ -110,7 +113,7 @@ function tick() {
 // when closing utp connections (i.e. we can pickup where we left off)
 function saveScrapedPortals() {
     var data = JSON.stringify(scrapedUsers)
-    fs.writeFile("./portals.json", data, function(err) {
+    fs.writeFile(seenPortalFile, data, function(err) {
         if (err) { throw err }
         setTimeout(saveScrapedPortals, 1000)
     })
@@ -118,7 +121,7 @@ function saveScrapedPortals() {
 
 async function main() {
     try { 
-        var scrapedUsers = require('./portals.json')
+        var scrapedUsers = require(seenPortalFile)
         scrapedUsers.forEach((portal) => {
           loadedUsers[portal] = true
         })
@@ -126,17 +129,17 @@ async function main() {
       console.log(e)
     }
 
-    fs.stat('./scraped.txt', function(err, stats) {
+    fs.stat(scrapedDataPath, function(err, stats) {
       // create the file if it doesn't exist
       var size
       if (err && err.code === 'ENOENT') {
-        fs.closeSync(fs.openSync('./scraped.txt', 'w'))
+        fs.closeSync(fs.openSync(scrapedDataPath, 'w'))
         size = 0
       } else {
         size = stats.size
       }
 
-      writer = fs.createWriteStream('./scraped.txt', {
+      writer = fs.createWriteStream(scrapedDataPath, {
         autoClose: true,
         start: size
       })
