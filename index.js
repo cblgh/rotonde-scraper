@@ -9,6 +9,7 @@ const start = new Date()
 
 const scrapedDataPath = './scraped.txt'
 const seenPortalFile = './portals.json'
+const seenPortalDelimiter = '\n'
 
 const maxConcurrent = 1
 var numProcessing = 0
@@ -49,13 +50,15 @@ function readFile(path, url) {
 }
 
 function processUser(portal) {
-  if(loadedUsers.has(portal.dat)) return
+  if(!loadedUsers.has(portal.dat)) {
 
-  if (portal.feed) {
-    writer.write(portal.feed.map(JSON.stringify).join('\n'))
+    if (portal.feed) {
+      writer.write(portal.feed.map(JSON.stringify).join('\n'))
+    }
+
+    portalWriter.write(portal.dat + seenPortalDelimiter)
+    loadedUsers.add(portal.dat)
   }
-
-  portalWriter.write(portal.dat)
 
   // crawl the list of portals
   for(let i=0; i<portal.port.length; ++i) {
@@ -81,7 +84,6 @@ function cleanURL(url) {
 
 var writeQueue = []
 async function loadSite(url) {
-  if(loadedUsers.has(url)) return
   var data
   try {
     data = await readFile("/portal.json", url)
@@ -104,9 +106,16 @@ async function loadSite(url) {
 
 async function main() {
   try { 
-    require(seenPortalFile).forEach((portal) => {
-      loadedUsers.add(portal)
-    })
+    fs
+      .readFileSync(seenPortalFile)
+      .toString()
+      .split(seenPortalDelimiter)
+      .forEach((portal) => {
+        if (portal) {
+          loadedUsers.add(portal)
+        }
+      }
+    )
   } catch (e) {
     console.log(e)
   }
