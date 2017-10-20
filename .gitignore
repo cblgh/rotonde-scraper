@@ -1,3 +1,6 @@
+scrapedPortals.json
+scraped.txt
+
 #~top ignores~
 node_modules/
 *.css
