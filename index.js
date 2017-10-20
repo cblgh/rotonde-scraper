@@ -3,7 +3,6 @@ const fs = require("fs")
 const datUrl = "dat://7f2ef715c36b6cd226102192ba220c73384c32e4beb49601fb3f5bba4719e0c5/"
 const queue = [cleanURL(datUrl)]
 const knownUsers = new Set()
-const loadedUsers = new Set()
 const DEADLINE = 10 * 60
 const start = new Date()
 
@@ -13,6 +12,7 @@ const seenPortalFile = './portals.json'
 const maxConcurrent = 1
 var numProcessing = 0
 
+var loadedUsers = new Set()
 var userCount = 0
 var writer
 var portalWriter
@@ -55,7 +55,7 @@ function processUser(portal) {
     writer.write(portal.feed.map(JSON.stringify).join('\n'))
   }
 
-  portalWriter.write(portal.dat)
+  portalWriter.write(portal.dat + "\n")
 
   // crawl the list of portals
   for(let i=0; i<portal.port.length; ++i) {
@@ -103,13 +103,12 @@ async function loadSite(url) {
 }
 
 async function main() {
-  try { 
-    require(seenPortalFile).forEach((portal) => {
-      loadedUsers.add(portal)
-    })
-  } catch (e) {
-    console.log(e)
-  }
+    try {
+        var data = fs.readFileSync(seenPortalFile)
+        data.toString().split("\n").forEach((portal) => { loadedUsers.add(portal)})
+    } catch (e) {
+        console.log(e)
+    }
 
     createWriteStream(scrapedDataPath).then((stream) => {
         writer = stream
