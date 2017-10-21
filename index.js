@@ -10,7 +10,7 @@ const scrapedDataPath = './scraped.txt'
 const seenPortalFile = './portals.json'
 const seenPortalDelimiter = '\n'
 
-const maxConcurrent = 1
+const maxConcurrent = 2
 var numProcessing = 0
 
 var loadedUsers = new Set()
@@ -70,7 +70,6 @@ function processUser(portal) {
   }
 
   console.log(`finishing ${portal.dat}`)
-  --numProcessing
   ++userCount
 }
 
@@ -89,12 +88,12 @@ async function loadSite(url) {
     data = await readFile("/portal.json", url)
   } catch (e) {
     console.log(e)
-    return
   }
 
   if (data) {
     processUser(JSON.parse(data))
   }
+  --numProcessing
 
   while (queue.length && (numProcessing < maxConcurrent)) {
     ++numProcessing
