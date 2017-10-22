@@ -4,6 +4,7 @@ const datUrl = "dat://7f2ef715c36b6cd226102192ba220c73384c32e4beb49601fb3f5bba47
 const queue = [cleanURL(datUrl)]
 const knownUsers = new Set()
 const DEADLINE = 10 * 60
+const TIMEOUT = 60 * 1000
 const start = new Date()
 
 const scrapedDataPath = './scraped.txt'
@@ -31,11 +32,23 @@ var portalWriter
 function readFile(path, url) {
   return new Promise((resolve, reject) => {
     Dat("./files", {key: url, temp: true, sparse: true}, (err, dat) => {
+      var isFinished = false
       if (err) {
         return reject(err)
       }
+
+      // the request has essentially timed out; abort
+      setTimeout(() => {
+          if (!isFinished) {
+              dat.leave()
+              dat.close()
+          }
+          reject(new Error(`Dat download for {url} timed-out`))
+      }, TIMEOUT)
+
       var network = dat.joinNetwork()
       dat.archive.readFile(path, function(err, data) {
+        isFinished = true 
         if (err) {
           return reject(err)
         }
