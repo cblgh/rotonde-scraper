@@ -43,7 +43,7 @@ function readFile(path, url) {
               dat.leave()
               dat.close()
           }
-          reject(new Error(`Dat download for {url} timed-out`))
+          reject(new Error(`Dat download for ${url} timed-out`))
       }, TIMEOUT)
 
       var network = dat.joinNetwork()
