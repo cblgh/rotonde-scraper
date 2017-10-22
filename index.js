@@ -53,7 +53,11 @@ function processUser(portal) {
   if(!loadedUsers.has(portal.dat)) {
 
     if (portal.feed) {
-      writer.write(portal.feed.map(JSON.stringify).join('\n'))
+      writer.write(portal.feed.map(function(msg) {
+          msg["source"] = portal.dat
+          return JSON.stringify(msg)
+      })
+      .join('\n'))
     }
 
     portalWriter.write(portal.dat + seenPortalDelimiter)
