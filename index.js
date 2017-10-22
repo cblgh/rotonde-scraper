@@ -1,15 +1,17 @@
 const Dat = require("dat-node")
 const fs = require("fs")
-const datUrl = "dat://7f2ef715c36b6cd226102192ba220c73384c32e4beb49601fb3f5bba4719e0c5/"
-const queue = [cleanURL(datUrl)]
+const START_DAT = "dat://7f2ef715c36b6cd226102192ba220c73384c32e4beb49601fb3f5bba4719e0c5/"
+const queue = [cleanURL(START_DAT)]
 const knownUsers = new Set()
 const DEADLINE = 10 * 60
 const TIMEOUT = 60 * 1000
 const start = new Date()
 
 const scrapedDataPath = './scraped.txt'
-const seenPortalFile = './portals.json'
+const seenPortalFile = './network.txt'
 const seenPortalDelimiter = '\n'
+
+module.exports = {dataPath: scrapedDataPath, networkPath: seenPortalFile}
 
 const maxConcurrent = 2
 var numProcessing = 0
@@ -25,8 +27,6 @@ var portalWriter
  *
  * CAUSE: something in dat-node that fails when closing utp connections
  *
- * random ass segfaults
- * CAUSE: cblgh?
  */
 
 function readFile(path, url) {
@@ -43,7 +43,7 @@ function readFile(path, url) {
               dat.leave()
               dat.close()
           }
-          reject(new Error(`Dat download for ${url} timed-out`))
+          reject(new Error(`Dat download for ${url} timed out`))
       }, TIMEOUT)
 
       var network = dat.joinNetwork()
@@ -67,7 +67,7 @@ function processUser(portal) {
 
     if (portal.feed) {
       writer.write(portal.feed.map(function(msg) {
-          msg["source"] = portal.dat
+          msg["source"] = portal.dat // add originator of message
           return JSON.stringify(msg)
       })
       .join('\n'))
@@ -168,6 +168,9 @@ function createWriteStream(path) {
     })
 }
 
-main().then(function() {
-  console.log(loadedUsers)
-})
+// only scrape if called directly
+if (require.main === module) {
+    main().then(() => {
+      console.log(loadedUsers)
+    })
+}
