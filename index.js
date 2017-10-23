@@ -3,7 +3,6 @@ const fs = require("fs")
 const START_DAT = "dat://7f2ef715c36b6cd226102192ba220c73384c32e4beb49601fb3f5bba4719e0c5/"
 const queue = [cleanURL(START_DAT)]
 const knownUsers = new Set()
-const DEADLINE = 10 * 60
 const TIMEOUT = 60 * 1000
 const start = new Date()
 
@@ -73,7 +72,7 @@ function processUser(portal) {
       .join('\n'))
     }
 
-    portalWriter.write(portal.dat + seenPortalDelimiter)
+    portalWriter.write(`${portal.name || "none"} ${portal.dat + seenPortalDelimiter}`)
     loadedUsers.add(portal.dat)
   }
 
