@@ -127,7 +127,7 @@ async function main() {
         .split(seenPortalDelimiter)
         .forEach((portal) => {
           if (portal) {
-            loadedUsers.add(portal)
+            loadedUsers.add(portal.split(" ")[1])
           }
         }
       )
