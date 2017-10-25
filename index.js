@@ -8,9 +8,10 @@ const start = new Date()
 
 const scrapedDataPath = './scraped.txt'
 const seenPortalFile = './network.txt'
+const metadataFile = "./metadata.txt"
 const seenPortalDelimiter = '\n'
 
-module.exports = {dataPath: scrapedDataPath, networkPath: seenPortalFile}
+module.exports = {dataPath: scrapedDataPath, networkPath: seenPortalFile, metadataPath: metadataFile}
 
 const maxConcurrent = 2
 var numProcessing = 0
@@ -19,6 +20,7 @@ var loadedUsers = new Set()
 var userCount = 0
 var writer
 var portalWriter
+var metadataWriter
 
 /* KNOWN ERRORS:
  * node: src/unix/udp.c:67: uv__udp_finish_close: Assertion
@@ -73,6 +75,8 @@ function processUser(portal) {
     }
 
     portalWriter.write(`${portal.name || "none"} ${portal.dat + seenPortalDelimiter}`)
+    portal.feed = [] // clear feed before writing metadata
+    metadataWriter.write(`${portal.dat} ${JSON.stringify(portal) + seenPortalDelimiter}`)
     loadedUsers.add(portal.dat)
   }
 
@@ -140,8 +144,11 @@ async function main() {
         return createWriteStream(seenPortalFile)
     }).then((stream) => {
         portalWriter = stream
+        return createWriteStream(metadataFile)
+    }).then((stream) => {
+        metadataWriter = stream
         loadSite(queue.pop())
-  })
+    })
 }
 
 function createWriteStream(path) {

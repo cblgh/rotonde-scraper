@@ -6,6 +6,7 @@ var exec = require("child_process").exec
 
 var DAT_PATH = "/home/cblgh/dats/rotonde-scraped"
 var SCRAPE_DEADLINE = 20 * 60 * 1000 // minutes
+SCRAPE_DEADLINE = 10000 // set deadline to 10 seconds for testing
 var child
 
 function start() {
@@ -42,15 +43,17 @@ function sort(filename) {
 
 function move() {
     console.log("moving files")
-    return new Promise((resolve, reject) => {
-        mv(scraper.dataPath, path.resolve(DAT_PATH, scraper.dataPath), {mkdirp: true}, function(err) {
-            if (err) { return reject(err) }
-            mv(scraper.networkPath,  path.resolve(DAT_PATH, scraper.networkPath), {mkdirp: true}, function(err) {
+    var paths = [scraper.dataPath, scraper.networkPath, scraper.metadataPath]
+    var mvPromises = paths.map((f) => {
+        return new Promise((resolve, reject) => {
+            console.log(`moving ${f}`)
+            mv(f, path.resolve(DAT_PATH, f), {mkdirp: true}, function(err) {
                 if (err) { return reject(err) }
                 resolve()
             })
         })
     })
+    return Promise.all(mvPromises)
 }
 
 setInterval(() => {
