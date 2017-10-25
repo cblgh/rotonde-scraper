@@ -6,7 +6,6 @@ var exec = require("child_process").exec
 
 var DAT_PATH = "/home/cblgh/dats/rotonde-scraped"
 var SCRAPE_DEADLINE = 20 * 60 * 1000 // minutes
-SCRAPE_DEADLINE = 10000 // set deadline to 10 seconds for testing
 var child
 
 function start() {
