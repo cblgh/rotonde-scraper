@@ -55,17 +55,33 @@ function move() {
     return Promise.all(mvPromises)
 }
 
-setInterval(() => {
+function interrupt() {
     console.log("stop the scraping process")
     finish()
-    child.on("stop", () => {
-        sort(scraper.dataPath)
-        .then(move)
-        .then(start)
-        .catch((e) => {
-            console.error("Error occurred when wrapping up", e)
+    return new Promise((resolve, reject) => {
+        child.on("stop", () => {
+            sort(scraper.dataPath)
+            .then(move)
+            .then(() => {
+                start()
+                resolve()
+            })
+            .catch((e) => {
+                console.error("Error occurred when wrapping up", e)
+                reject(e)
+            })
         })
     })
-}, SCRAPE_DEADLINE)
+}
 
-start()
+function main() {
+    // thx lykkin for the cool timeout recursion pattern
+    setTimeout(function timeoutRecursion() {
+        interrupt()
+        .then(setTimeout(timeoutRecursion, SCRAPE_DEADLINE))
+    }, SCRAPE_DEADLINE)
+
+    start()
+}
+
+main()
