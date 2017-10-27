@@ -1,5 +1,7 @@
 const Dat = require("dat-node")
 const fs = require("fs")
+const datResolve = require("dat-link-resolve")
+
 const START_DAT = "dat://7f2ef715c36b6cd226102192ba220c73384c32e4beb49601fb3f5bba4719e0c5/"
 const queue = [cleanURL(START_DAT)]
 const knownUsers = new Set()
@@ -111,7 +113,9 @@ async function loadSite(url) {
   }
 
   if (data) {
-    processUser(JSON.parse(data))
+      var portal = JSON.parse(data)
+      portal.dat = await resolveName(portal.dat)
+      processUser(portal)
   }
   --numProcessing
 
@@ -121,6 +125,15 @@ async function loadSite(url) {
     console.log(`processing ${url}`)
     loadSite(url)
   }
+}
+
+function resolveName(url) {
+    return new Promise((resolve, reject) => {
+        datResolve(url, (e, resolvedUrl) => {
+            if (e) { return reject(e) }
+            resolve(`dat://${resolvedUrl}/`)
+        })
+    })
 }
 
 async function main() {

@@ -12,6 +12,7 @@
   "author": "cblgh",
   "license": "MIT",
   "dependencies": {
+    "dat-link-resolve": "^1.1.1",
     "dat-node": "^3.5.3",
     "forever-monitor": "^1.7.1",
     "mv": "^2.1.1"
