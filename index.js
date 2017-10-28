@@ -118,6 +118,18 @@ async function loadSite(url) {
   if (data) {
       var portal = JSON.parse(data)
       portal.dat = await resolveName(portal.dat)
+
+      // resolve all target urls
+      portal.feed = await Promise.all(portal.feed.map((msg) => {
+          return new Promise(async (resolve, reject) => {
+              if (msg.target) {
+                  msg.target = await resolveName(msg.target) 
+              }
+              return resolve(msg)
+          })
+      }))
+
+      // resolve all ports
       portal.port = await Promise.all(portal.port.map(async (port) => {
           return await resolveName(port)
       }))
