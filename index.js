@@ -120,13 +120,11 @@ async function loadSite(url) {
       portal.dat = await resolveName(portal.dat)
 
       // resolve all target urls
-      portal.feed = await Promise.all(portal.feed.map((msg) => {
-          return new Promise(async (resolve, reject) => {
-              if (msg.target) {
-                  msg.target = await resolveName(msg.target) 
-              }
-              return resolve(msg)
-          })
+      portal.feed = await Promise.all(portal.feed.map(async (msg) => {
+          if (msg.target) {
+              msg.target = await resolveName(msg.target) 
+          }
+          return msg
       }))
 
       // resolve all ports
@@ -183,7 +181,6 @@ async function main() {
 }
 
 function createWriteStream(path) {
-    var stream
     return new Promise((resolve, reject) => {
         fs.stat(path, function(err, stats) {
             // create the file if it doesn't exist
@@ -195,7 +192,7 @@ function createWriteStream(path) {
                 size = stats.size
             }
 
-            stream = fs.createWriteStream(path, {
+            var stream = fs.createWriteStream(path, {
                 flags: 'r+',
                 autoClose: true,
                 start: size
