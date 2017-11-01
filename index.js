@@ -66,33 +66,35 @@ function readFile(path, url) {
 }
 
 function processUser(portal) {
-  if(!loadedUsers.has(portal.dat)) {
+    if(!loadedUsers.has(portal.dat)) {
 
-    if (portal.feed) {
-      writer.write(portal.feed.map(function(msg) {
-          msg["source"] = portal.dat // add originator of message
-          return JSON.stringify(msg)
-      })
-      .join('\n'))
+        if (portal.feed) {
+            writer.write(portal.feed.map(function(msg) {
+                msg["source"] = portal.dat // add originator of message
+                return JSON.stringify(msg)
+            })
+                .join('\n'))
+        } else {
+            console.error(portal.dat + "had no feed?")
+        }
+
+        portalWriter.write(`${portal.name || "none"} ${portal.dat + seenPortalDelimiter}`)
+        portal.feed = [] // clear feed before writing metadata
+        metadataWriter.write(`${portal.dat} ${JSON.stringify(portal) + seenPortalDelimiter}`)
+        loadedUsers.add(portal.dat)
     }
 
-    portalWriter.write(`${portal.name || "none"} ${portal.dat + seenPortalDelimiter}`)
-    portal.feed = [] // clear feed before writing metadata
-    metadataWriter.write(`${portal.dat} ${JSON.stringify(portal) + seenPortalDelimiter}`)
-    loadedUsers.add(portal.dat)
-  }
-
-  // crawl the list of portals
-  for(let i=0; i<portal.port.length; ++i) {
-    let p = cleanURL(portal.port[i])
-    if(!knownUsers.has(p)) {
-      knownUsers.add(p)
-      queue.push(p)
+    // crawl the list of portals
+    for(let i=0; i<portal.port.length; ++i) {
+        let p = cleanURL(portal.port[i])
+        if(!knownUsers.has(p)) {
+            knownUsers.add(p)
+            queue.push(p)
+        }
     }
-  }
 
-  console.log(`finishing ${portal.dat}`)
-  ++userCount
+    console.log(`finishing ${portal.dat}`)
+    ++userCount
 }
 
 function cleanURL(url) {
@@ -121,7 +123,7 @@ async function loadSite(url) {
 
         // filter out malformatted messages
         portal.feed = portal.feed.filter((msg) => {
-            return msg.timestamp && (msg.text && isString(msg.text)) && (msg.target && isString(msg.target) || !msg.target)
+            return msg.timestamp && (msg.message && isString(msg.message)) && (msg.target && isString(msg.target) || !msg.target)
         })
         // filter out malformatted portals
         portal.port = portal.port.filter((port) => {
