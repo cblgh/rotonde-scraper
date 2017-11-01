@@ -108,39 +108,52 @@ function cleanURL(url) {
 
 var writeQueue = []
 async function loadSite(url) {
-  var data
-  try {
-    data = await readFile("/portal.json", url)
-  } catch (e) {
-    console.log(e)
-  }
+    var data
+    try {
+        data = await readFile("/portal.json", url)
+    } catch (e) {
+        console.log(e)
+    }
 
-  if (data) {
-      var portal = JSON.parse(data)
-      portal.dat = await resolveName(portal.dat)
+    if (data) {
+        var portal = JSON.parse(data)
+        portal.dat = await resolveName(portal.dat)
 
-      // resolve all target urls
-      portal.feed = await Promise.all(portal.feed.map(async (msg) => {
-          if (msg.target) {
-              msg.target = await resolveName(msg.target) 
-          }
-          return msg
-      }))
+        // filter out malformatted messages
+        portal.feed = portal.feed.filter((msg) => {
+            return msg.timestamp && (msg.text && isString(msg.text)) && (msg.target && isString(msg.target) || !msg.target)
+        })
+        // filter out malformatted portals
+        portal.port = portal.port.filter((port) => {
+            return isString(port)
+        })
 
-      // resolve all ports
-      portal.port = await Promise.all(portal.port.map(async (port) => {
-          return await resolveName(port)
-      }))
-      processUser(portal)
-  }
-  --numProcessing
+        // resolve all target urls to their full dat keys
+        portal.feed = await Promise.all(portal.feed.map(async (msg) => {
+            if (msg.target) {
+                msg.target = await resolveName(msg.target) 
+            }
+            return msg
+        }))
 
-  while (queue.length && (numProcessing < maxConcurrent)) {
-    ++numProcessing
-    var url = queue.shift()
-    console.log(`processing ${url}`)
-    loadSite(url)
-  }
+        // resolve all ports to their full dat keys
+        portal.port = await Promise.all(portal.port.map(async (port) => {
+            return await resolveName(port)
+        }))
+        processUser(portal)
+    }
+    --numProcessing
+
+    while (queue.length && (numProcessing < maxConcurrent)) {
+        ++numProcessing
+        var url = queue.shift()
+        console.log(`processing ${url}`)
+        loadSite(url)
+    }
+}
+
+function isString(input) {
+    return typeof input === "string"
 }
 
 function resolveName(url) {
